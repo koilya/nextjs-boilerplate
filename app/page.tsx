@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import React from 'react';
 import AudioRecorder from './audio/AudioRecorder'; // Assuming this exists
-import { Conversation } from './conversation/Conversation'; // Import the Conversation component
+import { Conversation } from './audio/Conversation'; // Import the Conversation component
 
 export default function Home() {
   return (
