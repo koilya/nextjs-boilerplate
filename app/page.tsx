@@ -1,4 +1,6 @@
 import Image from "next/image";
+import React from 'react';
+import AudioRecorder from './audio/AudioRecorder';
 
 export default function Home() {
   return (
@@ -22,6 +24,9 @@ export default function Home() {
           </li>
           <li>Save and see your changes instantly.</li>
         </ol>
+
+        {/* Audio Recorder Integration */}
+        <AudioRecorder />
 
         <div className="flex gap-4 items-center flex-col sm:flex-row">
           <a
@@ -93,7 +98,7 @@ export default function Home() {
             width={16}
             height={16}
           />
-          Go to nextjs.org →
+          Go to nextjs
         </a>
       </footer>
     </div>
