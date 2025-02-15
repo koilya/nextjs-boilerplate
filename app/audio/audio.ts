@@ -2,6 +2,16 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { SpeechClient } from '@google-cloud/speech';
+import { Configuration, OpenAIApi } from 'openai';
+
+// Create Google Cloud Speech client
+const client = new SpeechClient();
+
+// Create OpenAI client
+const openai = new OpenAIApi(new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+}));
 
 export async function POST(req: Request) {
   const formData = await req.formData();
@@ -15,28 +25,41 @@ export async function POST(req: Request) {
     const filePath = path.join(process.cwd(), 'public', 'uploads', audioFile.name);
     fs.writeFileSync(filePath, buffer);
 
-    // Sending audio data to ElevenLabs for transcription
+    // Step 1: Use Google Cloud Speech-to-Text to transcribe the audio
     try {
-      const response = await fetch('https://api.elevenlabs.io/v1/speech/to-text', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.ELEVENLABS_API_KEY}`, // Set your API key here
-          'Content-Type': 'application/octet-stream',
+      const [response] = await client.recognize({
+        audio: {
+          content: buffer.toString('base64'),
         },
-        body: buffer,
+        config: {
+          encoding: 'LINEAR16', // Adjust based on your audio format
+          sampleRateHertz: 16000, // Adjust based on your audio sample rate
+          languageCode: 'en-US', // Adjust based on your preferred language
+        },
       });
 
-      const data = await response.json();
+      const transcription = response.results
+        .map(result => result.alternatives[0].transcript)
+        .join('\n');
 
-      if (response.ok) {
-        const transcription = data.transcription; // Access the transcription from the response
-        return NextResponse.json({ message: 'Audio processed!', transcription });
-      } else {
-        return NextResponse.json({ message: 'Error processing audio.', error: data }, { status: 500 });
-      }
+      // Step 2: Send the transcription to OpenAI API for analysis
+      const aiResponse = await openai.createCompletion({
+        model: 'text-davinci-003', // Adjust the model as per your need
+        prompt: `Please analyze and summarize the following text:\n\n${transcription}`,
+        max_tokens: 150, // Limit the response length
+      });
+
+      const analysisResult = aiResponse.data.choices[0].text.trim();
+
+      // Step 3: Return the transcription and AI response
+      return NextResponse.json({ 
+        message: 'Audio processed successfully!', 
+        transcription, 
+        analysis: analysisResult 
+      });
     } catch (error) {
-      console.error('Error sending audio to ElevenLabs:', error);
-      return NextResponse.json({ message: 'Internal Error.', error }, { status: 500 });
+      console.error('Error processing audio with Google Cloud:', error);
+      return NextResponse.json({ message: 'Error processing audio.', error }, { status: 500 });
     }
   }
 
